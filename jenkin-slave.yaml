@@ -1,0 +1,56 @@
+- name: Install Necessary packages
+  hosts: "{{server_user}}"
+  become: true
+  become_method: "{{admin_user}}"
+  name: Update the apt package and Install Jenkins-slave requirments
+  tasks:
+    - name: Update the apt package
+      ansible.builtin.apt:
+        update_cache: yes
+        force_apt_get: yes
+        cache_valid_time: 3600
+    - name: Install java 8 package
+      ansible.builtin.apt:
+        name: openjdk-8-jre-headless
+        state: present
+      notify:
+        - Java --version
+    - name: Install docker package
+      ansible.builtin.apt:
+        name: docker.io
+        state: present
+      notify:
+        - Docker --version
+    - name: Install git
+      apt:
+        name: git
+        state: present
+      notify:
+       - git --version
+    - name: Install sshpass package
+      apt:
+       name: sshpass
+       state: present
+       
+- name: Adding the jenkins slave user and group
+  hosts:  "{{server_user}}"
+  become: true
+  become_method: "{{admin_user}}"
+  vars:
+    mypass: “{{pass}}”
+  tasks:
+    - name: adding jenkins group
+      group:
+        name: jenkins
+        state: present
+    - name: Adding jenkins user
+      ansible.builtin.user:
+       name: jenkins-slave-2
+       password: “{{mypass | password_hash(‘sha512’)}}”
+       createhome: true
+       state: present
+       group: jenkins
+    - name: Create a SSH key for user jenkins
+      ansible.builtin.user:
+        name: jenkins-slave-2
+        generate_ssh_key: yes

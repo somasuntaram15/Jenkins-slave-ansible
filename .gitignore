@@ -1,0 +1,13 @@
+#ignore the vars file 
+*vars
+
+#ignore the ansible config file
+*.cfg
+
+
+
+#ignore the hosts file
+hosts
+
+#ignore the git folder
+.git
