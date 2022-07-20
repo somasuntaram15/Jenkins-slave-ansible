@@ -1,3 +1,4 @@
+---
 - name: Install Necessary packages
   hosts: "{{server_user}}"
   become: true
@@ -14,43 +15,88 @@
         name: openjdk-8-jre-headless
         state: present
       notify:
-        - Java --version
+        - Java --version  
     - name: Install docker package
       ansible.builtin.apt:
         name: docker.io
         state: present
       notify:
-        - Docker --version
+        - Docker --version  
     - name: Install git
       apt:
         name: git
         state: present
       notify:
-       - git --version
+       - git --version  
     - name: Install sshpass package
       apt:
        name: sshpass
-       state: present
-       
+       state: present   
+
 - name: Adding the jenkins slave user and group
   hosts:  "{{server_user}}"
   become: true
   become_method: "{{admin_user}}"
-  vars:
-    mypass: “{{pass}}”
-  tasks:
+  vars_files:
+   - pro-vars
+  vars: 
+    mypass: "{{pass}}"
+  tasks:       
     - name: adding jenkins group
       group:
         name: jenkins
-        state: present
+        state: present    
     - name: Adding jenkins user
       ansible.builtin.user:
        name: jenkins-slave-2
-       password: “{{mypass | password_hash(‘sha512’)}}”
+       password: "{{mypass | password_hash('sha512')}}"
        createhome: true
+       shell: /bin/bash
        state: present
        group: jenkins
-    - name: Create a SSH key for user jenkins
-      ansible.builtin.user:
-        name: jenkins-slave-2
-        generate_ssh_key: yes
+- name: creating .ssh directory
+  hosts: "{{server_user}}"
+  become: yes
+  become_user: jenkins-slave-2
+  tasks:
+    - name: craeta .ssh directory
+      file:
+        path: ~/.ssh
+        state: directory
+        owner: jenkins-slave-2
+        group: jenkins
+   
+       
+- name: generating ssh keypair 
+  hosts:  "{{server_user}}"
+  become: yes
+  become_user: jenkins-slave-2
+  tasks:
+   - name: genereate ssh key
+     openssh_keypair:
+        path: ~/.ssh/id_rsa_proj
+        type: rsa
+        size: 4096
+        state: present
+        force: no
+   - name: copying the ssh public key to authorized keys
+     copy:
+      src: ~/.ssh/id_rsa_proj.pub
+      dest: ~/.ssh/authorized_keys
+      mode: "644"
+      remote_src: yes
+
+- name: adding the jenkins user to the docker group
+  hosts:  "{{server_user}}"
+  become: yes
+  become_method: "{{admin_user}}"
+  tasks:
+   - name: adding jenkins slave user to docker group
+     user:
+      name: jenkins-slave-2
+      append: yes
+      groups: docker
+   - name: changing file permissions
+     file: 
+      path: /var/run/docker.sock
+      mode: "555"
